@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rifas El Padrino</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f9f9f9;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            padding: 20px;
+        }
+        h1 {
+            color: #2d2d2d;
+        }
+        .number-grid {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        .number {
+            width: 60px;
+            height: 60px;
+            margin: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .number.selected {
+            background-color: #4caf50;
+            color: white;
+        }
+        .number.reserved {
+            background-color: #ff5722;
+            color: white;
+            cursor: not-allowed;
+        }
+        .actions {
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .admin {
+            margin-top: 40px;
+        }
+        .admin textarea {
+            width: 80%;
+            height: 200px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Rifas El Padrino</h1>
+        <p>Selecciona tus números manualmente o usa el botón "Al Azar"</p>
+
+        <div class="actions">
+            <button id="random-btn">Al Azar</button>
+        </div>
+
+        <div class="number-grid" id="number-grid">
+            <!-- Números generados dinámicamente -->
+        </div>
+
+        <div class="actions">
+            <button id="pay-btn" disabled>Pagar</button>
+        </div>
+
+        <div class="admin">
+            <h2>Panel de Administrador</h2>
+            <textarea id="data-output" readonly></textarea><br>
+            <button id="save-data">Guardar Cambios</button>
+        </div>
+    </div>
+
+    <script>
+        const totalNumbers = 10000;
+        const numberGrid = document.getElementById('number-grid');
+        const payButton = document.getElementById('pay-btn');
+        const randomButton = document.getElementById('random-btn');
+        const dataOutput = document.getElementById('data-output');
+        const saveDataButton = document.getElementById('save-data');
+
+        let selectedNumbers = [];
+        let reservedNumbers = JSON.parse(localStorage.getItem('reservedNumbers')) || {};
+
+        // Generar los números dinámicamente
+        for (let i = 1; i <= totalNumbers; i++) {
+            const number = document.createElement('div');
+            number.classList.add('number');
+            number.textContent = i.toString().padStart(4, '0');
+
+            if (reservedNumbers[number.textContent]) {
+                number.classList.add('reserved');
+            } else {
+                number.addEventListener('click', () => toggleNumberSelection(number));
+            }
+
+            numberGrid.appendChild(number);
+        }
+
+        function toggleNumberSelection(element) {
+            const number = element.textContent;
+            if (element.classList.contains('selected')) {
+                element.classList.remove('selected');
+                selectedNumbers = selectedNumbers.filter(n => n !== number);
+            } else {
+                element.classList.add('selected');
+                selectedNumbers.push(number);
+            }
+            updatePayButton();
+        }
+
+        function updatePayButton() {
+            payButton.disabled = selectedNumbers.length === 0;
+        }
+
+        randomButton.addEventListener('click', () => {
+            document.querySelectorAll('.number.selected').forEach(el => el.classList.remove('selected'));
+            selectedNumbers = [];
+
+            while (selectedNumbers.length < 5) {
+                const randomIndex = Math.floor(Math.random() * totalNumbers);
+                const randomNumber = numberGrid.children[randomIndex];
+                if (!randomNumber.classList.contains('reserved') && !randomNumber.classList.contains('selected')) {
+                    randomNumber.classList.add('selected');
+                    selectedNumbers.push(randomNumber.textContent);
+                }
+            }
+            updatePayButton();
+        });
+
+        payButton.addEventListener('click', () => {
+            selectedNumbers.forEach(number => {
+                reservedNumbers[number] = true;
+                const element = [...numberGrid.children].find(el => el.textContent === number);
+                element.classList.add('reserved');
+                element.classList.remove('selected');
+            });
+            localStorage.setItem('reservedNumbers', JSON.stringify(reservedNumbers));
+
+            const message = `Hola, quiero apartar los siguientes números: ${selectedNumbers.join(', ')}`;
+            const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+            window.open(whatsappUrl, '_blank');
+            selectedNumbers = [];
+            updatePayButton();
+        });
+
+        // Panel de administrador
+        function updateAdminData() {
+            dataOutput.value = JSON.stringify(reservedNumbers, null, 2);
+        }
+
+        saveDataButton.addEventListener('click', () => {
+            try {
+                reservedNumbers = JSON.parse(dataOutput.value);
+                localStorage.setItem('reservedNumbers', JSON.stringify(reservedNumbers));
+
+                // Actualizar la interfaz
+                [...numberGrid.children].forEach(element => {
+                    const number = element.textContent;
+                    if (reservedNumbers[number]) {
+                        element.classList.add('reserved');
+                        element.classList.remove('selected');
+                    } else {
+                        element.classList.remove('reserved');
+                    }
+                });
+
+                alert('Datos actualizados correctamente.');
+            } catch (e) {
+                alert('Error al guardar los datos. Asegúrate de que el formato sea válido.');
+            }
+        });
+
+        updateAdminData();
+    </script>
+</body>
+</html>
